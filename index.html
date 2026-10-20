@@ -1,0 +1,3188 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Piggy Zeppelin | Proyecto Escolar 9° Grado - Instituto Emiliani</title>
+  <meta name="description" content="Zeppelin es un vehículo aéreo no tripulado escolar desarrollado por estudiantes de 9° grado del Instituto Emiliani para exploración segura de zonas de riesgo mediante ESP32.">
+
+  <!-- Tipografías: Space Grotesk, Inter y JetBrains Mono para telemetría -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@500;600;700&display=swap"
+    rel="stylesheet">
+
+  <style>
+    /* ==========================================================================
+       VARIABLES Y SISTEMA DE DISEÑO
+       ========================================================================== */
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      /* Paleta oficial de 5 colores del proyecto */
+      --palette-orange: #F79E12;
+      --palette-yellow: #FCD35E;
+      --palette-lime: #6DE249;
+      --palette-chartreuse: #BAD012;
+      --palette-green: #51BC30;
+
+      /* Acentos derivados */
+      --accent-green: #51BC30;
+      --accent-green-text: #1e700d;
+      --accent-green-bg: #ecf9e8;
+      --accent-orange: #F79E12;
+      --accent-orange-text: #b25b00;
+      --accent-orange-bg: #fff5e6;
+      --accent-blue: #0284c7;
+
+      /* Tema Claro (Por defecto) */
+      --bg-color: #fafbfc;
+      --bg-alt: #f1f5f9;
+      --card-bg: #ffffff;
+      --card-elevated: #ffffff;
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --border-subtle: #e2e8f0;
+      --border-hover: #cbd5e1;
+      --nav-bg: rgba(250, 251, 252, 0.88);
+      --hud-screen: #0a111e;
+      --hud-text: #4ade80;
+      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
+      --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.06);
+      --shadow-glow: 0 0 25px rgba(81, 188, 48, 0.25);
+    }
+
+    [data-theme="dark"] {
+      /* Tema Oscuro: Centro de Mando / High-Tech HUD */
+      --bg-color: #0b111e;
+      --bg-alt: #070c16;
+      --card-bg: #111a2d;
+      --card-elevated: #162238;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --border-subtle: #1e293b;
+      --border-hover: #334155;
+      --nav-bg: rgba(11, 17, 30, 0.9);
+      --accent-green-text: #6de249;
+      --accent-green-bg: rgba(81, 188, 48, 0.15);
+      --accent-orange-text: #fcd35e;
+      --accent-orange-bg: rgba(247, 158, 18, 0.15);
+      --hud-screen: #040810;
+      --hud-text: #6de249;
+      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+      --shadow-md: 0 12px 35px rgba(0, 0, 0, 0.5);
+      --shadow-glow: 0 0 35px rgba(109, 226, 73, 0.3);
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      min-height: 100vh;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    /* Barra de 5 colores fija en el borde superior */
+    .palette-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 5px;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
+      z-index: 1000;
+    }
+
+    .palette-bar-orange { background-color: var(--palette-orange); }
+    .palette-bar-yellow { background-color: var(--palette-yellow); }
+    .palette-bar-lime { background-color: var(--palette-lime); }
+    .palette-bar-chartreuse { background-color: var(--palette-chartreuse); }
+    .palette-bar-green { background-color: var(--palette-green); }
+
+    /* Efectos decorativos de fondo */
+    .ambient-glow {
+      position: absolute;
+      width: 750px;
+      height: 750px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(81, 188, 48, 0.09) 0%, rgba(247, 158, 18, 0.04) 40%, transparent 70%);
+      top: -200px;
+      left: 50%;
+      transform: translateX(-50%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ==========================================================================
+       BARRA DE NAVEGACIÓN FLOTANTE (NAVBAR)
+       ========================================================================== */
+    .site-header {
+      position: sticky;
+      top: 5px;
+      z-index: 900;
+      width: 100%;
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      background-color: var(--nav-bg);
+      border-bottom: 1px solid var(--border-subtle);
+      transition: all 0.3s ease;
+    }
+
+    .nav-container {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 0.85rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1.5rem;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .brand-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--palette-green), var(--palette-lime));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(81, 188, 48, 0.3);
+      font-size: 1.15rem;
+      transform: rotate(-3deg);
+      transition: transform 0.2s ease;
+    }
+
+    .brand-group:hover .brand-icon {
+      transform: rotate(0deg) scale(1.05);
+    }
+
+    .brand-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .brand-pill {
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 0.15rem 0.45rem;
+      border-radius: 999px;
+      background: var(--accent-green-bg);
+      color: var(--accent-green-text);
+      letter-spacing: 0.05em;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+      list-style: none;
+    }
+
+    .nav-link {
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: color 0.2s ease;
+      position: relative;
+      padding: 0.3rem 0;
+    }
+
+    .nav-link:hover {
+      color: var(--palette-green);
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    /* Switch de Tema Claro / Oscuro */
+    .theme-toggle {
+      background: var(--card-bg);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 1.1rem;
+    }
+
+    .theme-toggle:hover {
+      border-color: var(--palette-green);
+      transform: translateY(-1px);
+    }
+
+    .btn-nav-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      background: linear-gradient(135deg, var(--palette-green), #429f27);
+      color: #ffffff;
+      padding: 0.55rem 1.1rem;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-decoration: none;
+      box-shadow: 0 3px 12px rgba(81, 188, 48, 0.3);
+      transition: all 0.2s ease;
+    }
+
+    .btn-nav-cta:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 18px rgba(81, 188, 48, 0.4);
+    }
+
+    /* Botón Hamburguesa móvil */
+    .menu-toggle {
+      display: none;
+      background: none;
+      border: none;
+      font-size: 1.4rem;
+      color: var(--text-main);
+      cursor: pointer;
+    }
+
+    /* ==========================================================================
+       SECCIÓN HERO RENOVADA CON ILUSTRACIÓN Y CTA
+       ========================================================================== */
+    .hero-section {
+      position: relative;
+      z-index: 1;
+      padding: 4.5rem 1.5rem 3.5rem;
+      max-width: 1140px;
+      margin: 0 auto;
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      align-items: center;
+      gap: 3rem;
+    }
+
+    .hero-content {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      text-align: left;
+    }
+
+    .project-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 9999px;
+      padding: 0.45rem 1.1rem;
+      font-size: 0.82rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 1.5rem;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.2s ease;
+    }
+
+    .project-kicker:hover {
+      border-color: var(--palette-green);
+      transform: translateY(-1px);
+    }
+
+    .project-kicker .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--palette-green);
+      box-shadow: 0 0 0 3px rgba(81, 188, 48, 0.25);
+      animation: pulseDot 2s infinite;
+    }
+
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(0.85); }
+    }
+
+    .hero-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: clamp(2.8rem, 5.5vw, 4.4rem);
+      font-weight: 700;
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+      color: var(--text-main);
+      margin-bottom: 1.25rem;
+    }
+
+    .hero-title-highlight {
+      background: linear-gradient(120deg, var(--palette-green), var(--palette-orange));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      display: inline-block;
+    }
+
+    .hero-subtitle {
+      font-size: clamp(1.05rem, 2vw, 1.22rem);
+      font-weight: 400;
+      color: var(--text-muted);
+      line-height: 1.65;
+      max-width: 580px;
+      margin-bottom: 2rem;
+    }
+
+    .hero-actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.75rem;
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      background: linear-gradient(135deg, var(--palette-green), #429f27);
+      color: #ffffff;
+      padding: 0.85rem 1.65rem;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 0.98rem;
+      text-decoration: none;
+      box-shadow: 0 4px 18px rgba(81, 188, 48, 0.35);
+      transition: all 0.25s ease;
+      cursor: pointer;
+      border: none;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(81, 188, 48, 0.45);
+    }
+
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      background: var(--card-bg);
+      color: var(--text-main);
+      padding: 0.85rem 1.5rem;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 0.98rem;
+      text-decoration: none;
+      border: 1px solid var(--border-subtle);
+      box-shadow: var(--shadow-sm);
+      transition: all 0.25s ease;
+      cursor: pointer;
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--palette-orange);
+      transform: translateY(-2px);
+      color: var(--palette-orange);
+    }
+
+    /* Insignias de confianza en el Hero */
+    .hero-badges-list {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      font-weight: 500;
+      flex-wrap: wrap;
+    }
+
+    .hero-badge-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .hero-badge-item span.icon {
+      color: var(--palette-green);
+    }
+
+    /* Gráfico / Ilustración animada del Zeppelin */
+    .hero-visual {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .zeppelin-stage {
+      position: relative;
+      width: 100%;
+      max-width: 440px;
+      aspect-ratio: 1 / 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .stage-clouds {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .cloud {
+      position: absolute;
+      background: rgba(81, 188, 48, 0.08);
+      border-radius: 999px;
+      filter: blur(1px);
+      animation: driftClouds 12s infinite linear;
+    }
+
+    .cloud-1 { width: 140px; height: 32px; top: 18%; left: -10%; animation-duration: 14s; }
+    .cloud-2 { width: 180px; height: 42px; bottom: 22%; right: -15%; animation-duration: 18s; animation-delay: -6s; }
+
+    @keyframes driftClouds {
+      0% { transform: translateX(-15%); opacity: 0; }
+      20% { opacity: 0.8; }
+      80% { opacity: 0.8; }
+      100% { transform: translateX(120%); opacity: 0; }
+    }
+
+    .zeppelin-svg-wrap {
+      position: relative;
+      width: 100%;
+      animation: floatZeppelin 4.5s ease-in-out infinite;
+      cursor: grab;
+      filter: drop-shadow(0 20px 30px rgba(0, 0, 0, 0.15));
+      transition: transform 0.2s ease-out;
+    }
+
+    @keyframes floatZeppelin {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(-16px) rotate(-1.5deg); }
+    }
+
+    /* Hélices girando */
+    .propeller-spin {
+      transform-origin: center;
+      animation: spinPropeller 0.18s linear infinite;
+    }
+
+    @keyframes spinPropeller {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .beacon-blink {
+      animation: beaconBlink 1.2s infinite;
+    }
+
+    @keyframes beaconBlink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.2; }
+    }
+
+    /* Etiquetas flotantes en el Zeppelin */
+    .tech-tag {
+      position: absolute;
+      background: var(--card-bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 0.35rem 0.65rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-main);
+      box-shadow: var(--shadow-sm);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      pointer-events: none;
+      animation: floatTag 3s ease-in-out infinite alternate;
+    }
+
+    .tag-cam { top: 68%; left: -5%; }
+    .tag-esp { top: 15%; right: 5%; animation-delay: -1.5s; }
+
+    @keyframes floatTag {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(-6px); }
+    }
+
+    /* ==========================================================================
+       DETALLES TEMÁTICOS BAD PIGGIES
+       ========================================================================== */
+    .pig-ear {
+      transform-origin: 290px 70px;
+      animation: earWiggle 3.2s ease-in-out infinite;
+    }
+    @keyframes earWiggle {
+      0%, 100% { transform: rotate(0deg); }
+      50% { transform: rotate(-8deg); }
+    }
+
+    .pig-tail {
+      transform-origin: 45px 142px;
+      animation: tailWag 1.8s ease-in-out infinite;
+    }
+    @keyframes tailWag {
+      0%, 100% { transform: rotate(0deg); }
+      50% { transform: rotate(14deg); }
+    }
+
+    .pig-eye-blink {
+      transform-origin: center;
+      animation: eyeBlink 4s infinite;
+    }
+    @keyframes eyeBlink {
+      0%, 94%, 100% { transform: scaleY(1); }
+      96%, 98% { transform: scaleY(0.15); }
+    }
+
+    .spring-bounce {
+      animation: springBounce 0.45s ease-out;
+    }
+    @keyframes springBounce {
+      0% { transform: scale(1); }
+      35% { transform: scale(1.08, 0.92); }
+      65% { transform: scale(0.95, 1.05); }
+      100% { transform: scale(1); }
+    }
+
+    /* Bocadillo de diálogo de Ross */
+    .ross-speech-bubble {
+      position: absolute;
+      top: -36px;
+      left: 50%;
+      transform: translateX(-50%) translateY(8px);
+      background: var(--card-bg);
+      border: 2px solid var(--palette-green);
+      border-radius: 12px;
+      padding: 0.4rem 0.85rem;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--text-main);
+      box-shadow: 0 6px 20px rgba(81, 188, 48, 0.25);
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+      z-index: 25;
+    }
+
+    .ross-speech-bubble::after {
+      content: "";
+      position: absolute;
+      bottom: -7px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-width: 7px 7px 0;
+      border-style: solid;
+      border-color: var(--palette-green) transparent;
+      display: block;
+      width: 0;
+    }
+
+    .zeppelin-svg-wrap:hover .ross-speech-bubble,
+    .ross-speech-bubble.active-bubble {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* Insignias de Alter Ego Bad Piggies en el equipo */
+    .alter-ego-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--palette-orange);
+      background: var(--accent-orange-bg);
+      padding: 0.2rem 0.55rem;
+      border-radius: 6px;
+      border: 1px dashed rgba(247, 158, 18, 0.5);
+      width: fit-content;
+      margin-top: 0.25rem;
+    }
+
+    /* ==========================================================================
+       BARRA DE ESPECIFICACIONES TÉCNICAS (SPECS BAR)
+       ========================================================================== */
+    .specs-bar-section {
+      position: relative;
+      z-index: 2;
+      padding: 0 1.5rem 4rem;
+      max-width: 1140px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .specs-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1.25rem;
+      background: var(--card-bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 18px;
+      padding: 1.75rem;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .spec-item {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      padding: 0.5rem 1rem;
+      border-right: 1px solid var(--border-subtle);
+    }
+
+    .spec-item:last-child {
+      border-right: none;
+    }
+
+    .spec-header {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+    }
+
+    .spec-value {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .spec-desc {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+
+    /* ==========================================================================
+       SECCIÓN: DESCRIPCIÓN DEL PROYECTO
+       ========================================================================== */
+    .description-section {
+      position: relative;
+      z-index: 1;
+      padding: 2rem 1.5rem 5rem;
+      width: 100%;
+    }
+
+    .description-container {
+      max-width: 860px;
+      margin: 0 auto;
+    }
+
+    .section-badge {
+      display: inline-block;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--palette-green);
+      background: var(--accent-green-bg);
+      padding: 0.3rem 0.75rem;
+      border-radius: 6px;
+      margin-bottom: 0.85rem;
+    }
+
+    .section-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: clamp(2rem, 4vw, 2.75rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text-main);
+      margin-bottom: 1.5rem;
+    }
+
+    .description-text {
+      font-size: 1.15rem;
+      line-height: 1.8;
+      color: var(--text-muted);
+      margin-bottom: 2.5rem;
+    }
+
+    .features-row {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .feature-box {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      padding: 1.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.2s ease;
+    }
+
+    .feature-box:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--shadow-md);
+      border-color: var(--palette-green);
+    }
+
+    .feature-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: var(--accent-green-bg);
+      color: var(--palette-green);
+      font-size: 1.4rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 0.25rem;
+    }
+
+    .feature-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .feature-desc {
+      font-size: 0.95rem;
+      line-height: 1.6;
+      color: var(--text-muted);
+    }
+
+    .info-card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-subtle);
+      border-left: 5px solid var(--palette-green);
+      border-radius: 16px;
+      padding: 2rem 2.25rem;
+      box-shadow: var(--shadow-sm);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .info-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .card-subtitle {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.35rem;
+      font-weight: 600;
+      color: var(--text-main);
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .card-subtitle::before {
+      content: "";
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background-color: var(--palette-green);
+    }
+
+    .card-text {
+      font-size: 1.05rem;
+      line-height: 1.7;
+      color: var(--text-muted);
+    }
+
+    /* ==========================================================================
+       SECCIÓN: PROBLEMA A RESOLVER
+       ========================================================================== */
+    .problem-section {
+      position: relative;
+      z-index: 1;
+      padding: 2rem 1.5rem 5rem;
+      width: 100%;
+    }
+
+    .problem-container {
+      max-width: 860px;
+      margin: 0 auto;
+    }
+
+    .problem-badge {
+      display: inline-block;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--palette-orange);
+      background: var(--accent-orange-bg);
+      padding: 0.3rem 0.75rem;
+      border-radius: 6px;
+      margin-bottom: 0.85rem;
+    }
+
+    .problem-card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-subtle);
+      border-left: 5px solid var(--palette-orange);
+      border-radius: 18px;
+      padding: 2.25rem 2.5rem;
+      box-shadow: var(--shadow-sm);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .problem-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .problem-card-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.45rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 1.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+    }
+
+    .problem-card-title::before {
+      content: "";
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background-color: var(--palette-orange);
+    }
+
+    .problem-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .problem-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 1.15rem;
+      font-size: 1.08rem;
+      line-height: 1.65;
+      color: var(--text-muted);
+    }
+
+    .problem-item strong {
+      color: var(--text-main);
+      font-weight: 600;
+    }
+
+    .problem-bullet {
+      flex-shrink: 0;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background-color: var(--accent-orange-bg);
+      color: var(--accent-orange-text);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      font-weight: 700;
+      margin-top: 0.15rem;
+      border: 1px solid rgba(247, 158, 18, 0.4);
+    }
+
+    /* ==========================================================================
+       SECCIÓN INTERACTIVA: SIMULADOR DE CÁMARA FPV Y TELEMETRÍA
+       ========================================================================== */
+    .simulator-section {
+      position: relative;
+      z-index: 1;
+      padding: 3rem 1.5rem 6rem;
+      width: 100%;
+      background: var(--bg-alt);
+      border-top: 1px solid var(--border-subtle);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .simulator-container {
+      max-width: 980px;
+      margin: 0 auto;
+    }
+
+    .sim-header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+
+    .sim-header .section-title {
+      margin-bottom: 0.75rem;
+    }
+
+    .sim-header p {
+      color: var(--text-muted);
+      font-size: 1.05rem;
+      max-width: 620px;
+      margin: 0 auto;
+    }
+
+    /* Consola FPV */
+    .fpv-console {
+      background: var(--hud-screen);
+      border: 2px solid #1e293b;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.4), var(--shadow-glow);
+      position: relative;
+    }
+
+    /* Barra superior del visor FPV */
+    .fpv-topbar {
+      background: rgba(15, 23, 42, 0.95);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 0.75rem 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #94a3b8;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+    }
+
+    .fpv-status-live {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: #ef4444;
+      font-weight: 700;
+    }
+
+    .rec-dot {
+      width: 9px;
+      height: 9px;
+      background-color: #ef4444;
+      border-radius: 50%;
+      animation: recBlink 1s infinite;
+    }
+
+    @keyframes recBlink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.1; }
+    }
+
+    /* Pantalla de cámara simulada */
+    .fpv-screen {
+      position: relative;
+      height: 420px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(180deg, #091224 0%, #132238 60%, #1e3a29 100%);
+      transition: filter 0.3s ease;
+    }
+
+    /* Modos de visión */
+    .fpv-screen.mode-night {
+      filter: saturate(0.2) hue-rotate(85deg) brightness(1.25) contrast(1.3);
+    }
+
+    .fpv-screen.mode-thermal {
+      filter: invert(0.9) hue-rotate(240deg) saturate(3);
+    }
+
+    /* Paisaje simulado */
+    .sky-horizon {
+      position: absolute;
+      width: 200%;
+      height: 1px;
+      background: rgba(74, 222, 128, 0.3);
+      top: 55%;
+      left: -50%;
+      transition: transform 0.2s ease-out;
+    }
+
+    .grid-terrain {
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      height: 45%;
+      background-image: 
+        linear-gradient(rgba(74, 222, 128, 0.12) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(74, 222, 128, 0.12) 1px, transparent 1px);
+      background-size: 35px 35px;
+      perspective: 300px;
+      transform: perspective(250px) rotateX(45deg);
+      transform-origin: bottom center;
+    }
+
+    /* Líneas de escaneo retro CRT */
+    .scanlines-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+      background-size: 100% 4px;
+      pointer-events: none;
+      z-index: 5;
+      opacity: 0.6;
+    }
+
+    /* HUD Overlay de vuelo */
+    .hud-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      pointer-events: none;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--hud-text);
+      text-shadow: 0 0 6px rgba(74, 222, 128, 0.6);
+    }
+
+    .hud-center {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .crosshair {
+      width: 80px;
+      height: 80px;
+      border: 1px dashed rgba(74, 222, 128, 0.7);
+      border-radius: 50%;
+      position: relative;
+    }
+
+    .crosshair::before,
+    .crosshair::after {
+      content: "";
+      position: absolute;
+      background-color: var(--hud-text);
+    }
+
+    .crosshair::before { width: 12px; height: 2px; top: 39px; left: 34px; }
+    .crosshair::after { width: 2px; height: 12px; top: 34px; left: 39px; }
+
+    /* Cuadro de objetivo detectado */
+    .target-box {
+      border: 2px solid #ef4444;
+      border-radius: 6px;
+      padding: 0.35rem 0.65rem;
+      font-size: 0.75rem;
+      background: rgba(239, 68, 68, 0.15);
+      color: #fca5a5;
+      animation: targetPulse 1.8s infinite;
+    }
+
+    @keyframes targetPulse {
+      0%, 100% { border-color: #ef4444; transform: scale(1); }
+      50% { border-color: #f87171; transform: scale(1.04); }
+    }
+
+    .hud-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+
+    .telemetry-card {
+      background: rgba(10, 17, 30, 0.75);
+      backdrop-filter: blur(4px);
+      border: 1px solid rgba(74, 222, 128, 0.25);
+      border-radius: 8px;
+      padding: 0.65rem 0.9rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+      font-size: 0.8rem;
+    }
+
+    .telemetry-val {
+      font-size: 1.15rem;
+      font-weight: 700;
+    }
+
+    /* Panel de controles interactivos del simulador */
+    .sim-controls-bar {
+      background: rgba(15, 23, 42, 0.95);
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .control-group {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+    }
+
+    .sim-btn {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #f8fafc;
+      padding: 0.55rem 0.95rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      font-family: 'Inter', sans-serif;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      transition: all 0.2s ease;
+    }
+
+    .sim-btn:hover {
+      background: #334155;
+      border-color: var(--palette-green);
+      transform: translateY(-1px);
+    }
+
+    .sim-btn:active {
+      transform: translateY(1px);
+    }
+
+    .sim-btn.btn-active {
+      background: var(--palette-green);
+      color: #042100;
+      border-color: var(--palette-green);
+    }
+
+    /* Flash de captura de foto */
+    .camera-flash {
+      position: absolute;
+      inset: 0;
+      background: #ffffff;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 50;
+      transition: opacity 0.1s ease-out;
+    }
+
+    .camera-flash.flash-active {
+      opacity: 0.85;
+    }
+
+    /* ==========================================================================
+       SECCIÓN: MATERIALES
+       ========================================================================== */
+    .materials-section {
+      position: relative;
+      z-index: 1;
+      padding: 5rem 1.5rem 5rem;
+      width: 100%;
+    }
+
+    .materials-container {
+      max-width: 980px;
+      margin: 0 auto;
+    }
+
+    .materials-title-wrap {
+      text-align: left;
+      margin-bottom: 2.25rem;
+    }
+
+    .materials-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.35rem;
+    }
+
+    .material-card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      padding: 1.6rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.25s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .material-card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: linear-gradient(90deg, var(--palette-green), var(--palette-lime));
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    .material-card:hover {
+      transform: translateY(-4px);
+      border-color: var(--border-hover);
+      box-shadow: var(--shadow-md);
+    }
+
+    .material-card:hover::before {
+      opacity: 1;
+    }
+
+    .material-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .material-number {
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      background-color: var(--accent-green-bg);
+      color: var(--accent-green-text);
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .material-badge-tag {
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      padding: 0.2rem 0.5rem;
+      border-radius: 999px;
+      background: var(--bg-alt);
+      color: var(--text-muted);
+      margin-left: auto;
+    }
+
+    .material-name {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .material-desc {
+      font-size: 0.95rem;
+      line-height: 1.6;
+      color: var(--text-muted);
+    }
+
+    /* ==========================================================================
+       SECCIÓN: DIAGRAMA INTERACTIVO DE HARDWARE (ARQUITECTURA)
+       ========================================================================== */
+    .circuit-section {
+      position: relative;
+      z-index: 1;
+      padding: 2rem 1.5rem 6rem;
+      width: 100%;
+    }
+
+    .circuit-container {
+      max-width: 980px;
+      margin: 0 auto;
+    }
+
+    .circuit-board {
+      background: var(--card-bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 20px;
+      padding: 2.25rem;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .circuit-diagram {
+      display: grid;
+      grid-template-columns: 1fr 1.3fr 1fr;
+      gap: 1.5rem;
+      align-items: center;
+      margin-top: 1.5rem;
+    }
+
+    .circuit-col {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .circuit-node {
+      background: var(--bg-alt);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 1.15rem;
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+
+    .circuit-node:hover,
+    .circuit-node.active-node {
+      border-color: var(--palette-green);
+      background: var(--card-bg);
+      box-shadow: 0 4px 16px rgba(81, 188, 48, 0.15);
+      transform: scale(1.02);
+    }
+
+    .node-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.35rem;
+    }
+
+    .node-desc {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.45;
+    }
+
+    .node-center {
+      background: linear-gradient(135deg, rgba(81, 188, 48, 0.12), rgba(247, 158, 18, 0.1));
+      border: 2px solid var(--palette-green);
+      border-radius: 16px;
+      padding: 2rem 1.5rem;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.6rem;
+      box-shadow: var(--shadow-glow);
+    }
+
+    .esp-chip-icon {
+      width: 56px;
+      height: 56px;
+      background: var(--palette-green);
+      color: #052600;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8rem;
+      font-weight: 700;
+    }
+
+    /* Panel de detalle de conexión */
+    .circuit-info-box {
+      margin-top: 1.75rem;
+      padding: 1rem 1.25rem;
+      background: var(--bg-alt);
+      border-radius: 10px;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .circuit-info-box strong {
+      color: var(--text-main);
+    }
+
+    /* ==========================================================================
+       SECCIÓN: FASES DEL PROYECTO (TIMELINE)
+       ========================================================================== */
+    .timeline-section {
+      position: relative;
+      z-index: 1;
+      padding: 2rem 1.5rem 6rem;
+      width: 100%;
+    }
+
+    .timeline-container {
+      max-width: 860px;
+      margin: 0 auto;
+    }
+
+    .timeline-list {
+      position: relative;
+      margin-top: 2.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+    }
+
+    .timeline-list::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 19px;
+      width: 2px;
+      background: var(--border-subtle);
+    }
+
+    .timeline-item {
+      position: relative;
+      display: flex;
+      align-items: flex-start;
+      gap: 1.5rem;
+      padding-left: 0.25rem;
+    }
+
+    .timeline-marker {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--card-bg);
+      border: 2px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      font-weight: 700;
+      flex-shrink: 0;
+      z-index: 2;
+      transition: all 0.2s ease;
+    }
+
+    .timeline-item.completed .timeline-marker {
+      border-color: var(--palette-green);
+      background: var(--palette-green);
+      color: #ffffff;
+    }
+
+    .timeline-item.in-progress .timeline-marker {
+      border-color: var(--palette-orange);
+      background: var(--palette-orange);
+      color: #ffffff;
+      animation: pulseMarker 2s infinite;
+    }
+
+    @keyframes pulseMarker {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(247, 158, 18, 0.4); }
+      50% { box-shadow: 0 0 0 8px rgba(247, 158, 18, 0); }
+    }
+
+    .timeline-content {
+      background: var(--card-bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 14px;
+      padding: 1.5rem;
+      flex: 1;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .timeline-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 0.45rem;
+    }
+
+    .timeline-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .timeline-tag {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+    }
+
+    .tag-done {
+      background: var(--accent-green-bg);
+      color: var(--accent-green-text);
+    }
+
+    .tag-active {
+      background: var(--accent-orange-bg);
+      color: var(--accent-orange-text);
+    }
+
+    .tag-next {
+      background: var(--bg-alt);
+      color: var(--text-muted);
+    }
+
+    /* ==========================================================================
+       SECCIÓN: INTEGRANTES Y ROLES
+       ========================================================================== */
+    .team-section {
+      position: relative;
+      z-index: 1;
+      padding: 2rem 1.5rem 6rem;
+      width: 100%;
+    }
+
+    .team-container {
+      max-width: 860px;
+      margin: 0 auto;
+    }
+
+    .team-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.5rem;
+      margin-top: 2rem;
+    }
+
+    .team-card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 18px;
+      padding: 1.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.25s ease;
+      position: relative;
+    }
+
+    .team-card:hover {
+      transform: translateY(-3px);
+      border-color: var(--palette-green);
+      box-shadow: var(--shadow-md);
+    }
+
+    .team-card-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .team-avatar {
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, var(--accent-green-bg), var(--bg-alt));
+      color: var(--accent-green-text);
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .team-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+
+    .team-name {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .team-role {
+      display: inline-block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--accent-green-text);
+      background-color: var(--accent-green-bg);
+      padding: 0.25rem 0.65rem;
+      border-radius: 6px;
+      width: fit-content;
+    }
+
+    .team-phrase {
+      font-size: 0.98rem;
+      line-height: 1.6;
+      color: var(--text-muted);
+    }
+
+    .team-skills {
+      display: flex;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+      margin-top: auto;
+    }
+
+    .skill-pill {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 0.2rem 0.5rem;
+      background: var(--bg-alt);
+      color: var(--text-muted);
+      border-radius: 6px;
+    }
+
+    /* ==========================================================================
+       MODAL DE MEMORIA TÉCNICA
+       ========================================================================== */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.65);
+      backdrop-filter: blur(6px);
+      z-index: 2000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: var(--card-bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 20px;
+      width: 100%;
+      max-width: 680px;
+      max-height: 85vh;
+      overflow-y: auto;
+      padding: 2.25rem;
+      position: relative;
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 1.25rem;
+      right: 1.25rem;
+      background: var(--bg-alt);
+      border: none;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      font-size: 1.2rem;
+      cursor: pointer;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s ease;
+    }
+
+    .modal-close:hover {
+      background: var(--border-hover);
+    }
+
+    .modal-body {
+      margin-top: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+      line-height: 1.7;
+      color: var(--text-muted);
+    }
+
+    .modal-body h4 {
+      color: var(--text-main);
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.15rem;
+    }
+
+    /* Botón flotante para volver arriba */
+    .back-to-top {
+      position: fixed;
+      bottom: 25px;
+      right: 25px;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: var(--card-bg);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      cursor: pointer;
+      box-shadow: var(--shadow-sm);
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.25s ease;
+      z-index: 800;
+    }
+
+    .back-to-top.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .back-to-top:hover {
+      border-color: var(--palette-green);
+      color: var(--palette-green);
+      transform: translateY(-3px);
+    }
+
+    /* ==========================================================================
+       FOOTER
+       ========================================================================== */
+    .site-footer {
+      border-top: 1px solid var(--border-subtle);
+      padding: 3rem 1.5rem;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      background-color: var(--card-bg);
+      position: relative;
+      z-index: 1;
+    }
+
+    .footer-content {
+      max-width: 860px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.25rem;
+    }
+
+    .footer-text {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.65rem;
+      font-weight: 500;
+      flex-wrap: wrap;
+    }
+
+    .footer-actions {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .btn-footer {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      padding: 0.4rem 0.8rem;
+      border-radius: 8px;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-alt);
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+
+    .btn-footer:hover {
+      border-color: var(--palette-green);
+      color: var(--palette-green);
+    }
+
+    /* ==========================================================================
+       RESPONSIVIDAD Y AJUSTES MÓVILES
+       ========================================================================== */
+    @media (max-width: 960px) {
+      .hero-section {
+        grid-template-columns: 1fr;
+        text-align: center;
+        padding-top: 3.5rem;
+        gap: 2.5rem;
+      }
+
+      .hero-content {
+        align-items: center;
+        text-align: center;
+      }
+
+      .hero-actions {
+        justify-content: center;
+      }
+
+      .hero-badges-list {
+        justify-content: center;
+      }
+
+      .specs-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .materials-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .circuit-diagram {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .nav-links {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        width: 100%;
+        background: var(--card-bg);
+        border-bottom: 1px solid var(--border-subtle);
+        flex-direction: column;
+        padding: 1.5rem;
+        gap: 1rem;
+        box-shadow: var(--shadow-md);
+      }
+
+      .nav-links.mobile-open {
+        display: flex;
+      }
+
+      .menu-toggle {
+        display: block;
+      }
+
+      .features-row {
+        grid-template-columns: 1fr;
+      }
+
+      .team-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .specs-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .spec-item {
+        border-right: none;
+        border-bottom: 1px solid var(--border-subtle);
+        padding-bottom: 0.75rem;
+      }
+
+      .spec-item:last-child {
+        border-bottom: none;
+      }
+
+      .materials-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .fpv-screen {
+        height: 320px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Barra de 5 colores de la paleta fija en el borde superior -->
+  <aside class="palette-bar" aria-hidden="true">
+    <div class="palette-bar-orange" title="Naranja Oficial"></div>
+    <div class="palette-bar-yellow" title="Amarillo Oficial"></div>
+    <div class="palette-bar-lime" title="Lima Oficial"></div>
+    <div class="palette-bar-chartreuse" title="Chartreuse Oficial"></div>
+    <div class="palette-bar-green" title="Verde Oficial"></div>
+  </aside>
+
+  <!-- Efecto sutil de iluminación ambiental -->
+  <div class="ambient-glow" aria-hidden="true"></div>
+
+  <!-- Barra de Navegación Flotante (Glassmorphism) -->
+  <header class="site-header">
+    <div class="nav-container">
+      <a href="#inicio" class="brand-group" aria-label="Piggy Zeppelin Inicio">
+        <div class="brand-icon">🎈</div>
+        <div class="brand-title">
+          <span>Piggy Zeppelin</span>
+          <span class="brand-pill">9° Grado</span>
+        </div>
+      </a>
+
+      <nav>
+        <ul class="nav-links" id="navLinks">
+          <li><a href="#inicio" class="nav-link">Inicio</a></li>
+          <li><a href="#descripcion" class="nav-link">El Proyecto</a></li>
+          <li><a href="#problema" class="nav-link">El Reto</a></li>
+          <li><a href="#simulador" class="nav-link">Telemetría FPV</a></li>
+          <li><a href="#materiales" class="nav-link">Materiales</a></li>
+          <li><a href="#circuito" class="nav-link">Arquitectura</a></li>
+          <li><a href="#fases" class="nav-link">Fases</a></li>
+          <li><a href="#equipo" class="nav-link">Equipo</a></li>
+        </ul>
+      </nav>
+
+      <div class="nav-actions">
+        <!-- Switch de Tema Claro / Centro de Mando -->
+        <button id="themeToggleBtn" class="theme-toggle" title="Alternar Modo Centro de Mando (Oscuro / Claro)" aria-label="Cambiar tema">
+          <span id="themeIcon">🛰️</span>
+        </button>
+
+        <a href="#simulador" class="btn-nav-cta">
+          <span>🕹️ Probar FPV</span>
+        </a>
+
+        <!-- Botón Menú Móvil -->
+        <button id="menuToggleBtn" class="menu-toggle" aria-label="Abrir menú de navegación">
+          ☰
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- ==========================================================================
+         HERO SECTION: TÍTULO, ILUSTRACIÓN DINÁMICA Y CTAs
+         ========================================================================== -->
+    <section class="hero-section" id="inicio">
+      <div class="hero-content">
+        <!-- Badge escolar -->
+        <div class="project-kicker">
+          <span class="dot"></span>
+          <span>Proyecto Escolar &bull; Future Minds &bull; 9° Grado &bull; Instituto Emiliani</span>
+        </div>
+
+        <!-- Título principal -->
+        <h1 class="hero-title">
+          Piggy <span class="hero-title-highlight">Zeppelin</span>
+        </h1>
+
+        <!-- Subtítulo de impacto -->
+        <p class="hero-subtitle">
+          Vehículo aéreo no tripulado de exploración e inspección segura. Desarrollado con tecnología <strong>ESP32</strong> y transmisión en vivo para ingresar a zonas de alto riesgo sin comprometer vidas humanas.
+        </p>
+
+        <!-- Botones de acción -->
+        <div class="hero-actions">
+          <a href="#simulador" class="btn-primary">
+            <span>🕹️ Iniciar Simulador FPV</span>
+          </a>
+          <button id="openModalBtn" class="btn-secondary">
+            <span>📄 Ver Ficha Técnica</span>
+          </button>
+        </div>
+
+        <!-- Insignias de validación rápida -->
+        <div class="hero-badges-list">
+          <div class="hero-badge-item">
+            <span class="icon">✓</span>
+            <span>Microcontrolador ESP32</span>
+          </div>
+          <div class="hero-badge-item">
+            <span class="icon">✓</span>
+            <span>Cámara FPV en Directo</span>
+          </div>
+          <div class="hero-badge-item">
+            <span class="icon">✓</span>
+            <span>Sustentación Ligera</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ilustración Interactiva y Animada del Zeppelin -->
+      <div class="hero-visual">
+        <div class="zeppelin-stage">
+          <!-- Nubes flotantes animadas -->
+          <div class="stage-clouds">
+            <div class="cloud cloud-1"></div>
+            <div class="cloud cloud-2"></div>
+          </div>
+
+          <!-- Contenedor del Zeppelin con animación suave de levitación e interactividad Bad Piggies -->
+          <div class="zeppelin-svg-wrap" id="zeppelinVisual" title="¡Haz clic en Ross o en el Piggy Zeppelin para interactuar!">
+            <!-- Bocadillo de diálogo de Ross -->
+            <div class="ross-speech-bubble" id="rossSpeechBubble">
+              ¡Oink! ¡Ross al mando del ESP32! 🚀
+            </div>
+
+            <svg viewBox="0 0 520 370" fill="none" xmlns="http://www.w3.org/2000/svg" style="width: 100%; height: auto;">
+              <defs>
+                <!-- Gradiente del cuerpo cerdito -->
+                <linearGradient id="pigEnvelopeGrad" x1="60" y1="60" x2="460" y2="240" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stop-color="#51BC30" />
+                  <stop offset="35%" stop-color="#6DE249" />
+                  <stop offset="80%" stop-color="#BAD012" />
+                  <stop offset="100%" stop-color="#FCD35E" />
+                </linearGradient>
+
+                <!-- Gradiente para el hocico de cerdito -->
+                <linearGradient id="snoutGrad" x1="410" y1="120" x2="475" y2="175" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stop-color="#6DE249" />
+                  <stop offset="100%" stop-color="#3b961c" />
+                </linearGradient>
+
+                <!-- Gradiente de la caja de madera de Bad Piggies -->
+                <linearGradient id="crateWoodGrad" x1="180" y1="230" x2="330" y2="300" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stop-color="#b45309" />
+                  <stop offset="50%" stop-color="#92400e" />
+                  <stop offset="100%" stop-color="#78350f" />
+                </linearGradient>
+
+                <linearGradient id="plankLight" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#d97706" />
+                  <stop offset="100%" stop-color="#b45309" />
+                </linearGradient>
+
+                <!-- Filtro de sombra suave -->
+                <filter id="pigShadow" x="-10%" y="-10%" width="130%" height="130%">
+                  <feDropShadow dx="0" dy="14" stdDeviation="10" flood-opacity="0.25" />
+                </filter>
+              </defs>
+
+              <!-- 1. Aleta timón superior (Naranja estilo Bad Piggies) -->
+              <path d="M75 115 L25 65 L105 100 Z" fill="#F79E12" stroke="#b45309" stroke-width="2" />
+              <!-- Aleta inferior -->
+              <path d="M75 165 L25 215 L105 180 Z" fill="#F79E12" stroke="#b45309" stroke-width="2" />
+
+              <!-- Colita rizada de cerdito en el timón trasero (con animación de meneo) -->
+              <path d="M48 140 Q30 135 25 145 Q20 155 32 158 Q40 160 38 148 Q35 142 42 140" 
+                    fill="none" stroke="#51BC30" stroke-width="4.5" stroke-linecap="round" class="pig-tail" />
+
+              <!-- Hélice propulsora de madera en la cola -->
+              <rect x="18" y="137" width="16" height="6" rx="2" fill="#78350f" />
+              <g class="propeller-spin" style="transform-origin: 18px 140px;">
+                <ellipse cx="18" cy="140" rx="3.5" ry="26" fill="#d97706" stroke="#78350f" stroke-width="1.5" opacity="0.9" />
+              </g>
+
+              <!-- 2. Oreja trasera de cerdito en el dirigible -->
+              <path d="M220 62 Q210 25 235 28 Q250 32 245 62 Z" fill="#3b961c" stroke="#256e0e" stroke-width="2" />
+
+              <!-- 3. Cuerpo principal del Piggy Zeppelin (Aerostato) -->
+              <ellipse cx="260" cy="140" rx="195" ry="88" fill="url(#pigEnvelopeGrad)" filter="url(#pigShadow)" stroke="#3da81e" stroke-width="2" />
+
+              <!-- Panza inferior para volumen y sombra 3D -->
+              <path d="M85 165 Q260 230 435 165 Q260 252 85 165 Z" fill="#2d7715" opacity="0.45" />
+
+              <!-- Líneas de remaches / costura estilo planos de Bad Piggies -->
+              <path d="M145 68 Q165 140 145 212" stroke="rgba(255,255,255,0.45)" stroke-width="2.5" stroke-dasharray="6 4" />
+              <path d="M260 52 Q280 140 260 228" stroke="rgba(255,255,255,0.45)" stroke-width="2.5" stroke-dasharray="6 4" />
+              <path d="M375 68 Q395 140 375 212" stroke="rgba(255,255,255,0.45)" stroke-width="2.5" stroke-dasharray="6 4" />
+
+              <!-- Franja central amarilla de refuerzo -->
+              <path d="M70 140 Q260 162 450 140" stroke="#FCD35E" stroke-width="5" opacity="0.85" />
+
+              <!-- 4. Oreja delantera de cerdito en el dirigible (con animación de balanceo) -->
+              <g class="pig-ear">
+                <path d="M285 58 Q280 16 312 24 Q326 30 315 62 Z" fill="#6DE249" stroke="#3da81e" stroke-width="2.5" />
+                <path d="M292 54 Q288 28 306 32 Q314 36 308 56 Z" fill="#86efac" opacity="0.8" />
+              </g>
+
+              <!-- 5. Ojos del Piggy Zeppelin -->
+              <g class="pig-eye-blink">
+                <ellipse cx="380" cy="112" rx="15" ry="17" fill="#ffffff" stroke="#256e0e" stroke-width="2" />
+                <circle cx="384" cy="113" r="8" fill="#0f172a" />
+                <circle cx="386" cy="110" r="3.5" fill="#ffffff" />
+                <!-- Ceja simpática -->
+                <path d="M368 94 Q382 89 396 95" stroke="#1e580e" stroke-width="2.5" stroke-linecap="round" fill="none" />
+              </g>
+
+              <!-- Pecas en la mejilla del dirigible (Ross style) -->
+              <circle cx="352" cy="132" r="3" fill="#78350f" opacity="0.75" />
+              <circle cx="344" cy="140" r="2.5" fill="#78350f" opacity="0.75" />
+              <circle cx="355" cy="145" r="3" fill="#78350f" opacity="0.75" />
+
+              <!-- 6. Gran Hocico Cerdito en la Proa del Zeppelin -->
+              <g id="pigNoseGroup">
+                <ellipse cx="445" cy="144" rx="32" ry="42" fill="url(#snoutGrad)" stroke="#256e0e" stroke-width="3" />
+                <!-- Fosa nasal izquierda -->
+                <ellipse cx="445" cy="132" rx="7.5" ry="11" fill="#144408" />
+                <!-- Fosa nasal derecha -->
+                <ellipse cx="445" cy="156" rx="7.5" ry="11" fill="#144408" />
+                <!-- Brillo del hocico -->
+                <ellipse cx="432" cy="122" rx="6" ry="10" fill="rgba(255,255,255,0.4)" transform="rotate(-15 432 122)" />
+              </g>
+
+              <!-- Luz de navegación en la aleta superior -->
+              <circle cx="445" cy="102" r="4" fill="#22c55e" class="beacon-blink" />
+
+              <!-- 7. Cables de suspensión hacia la góndola -->
+              <line x1="190" y1="212" x2="210" y2="242" stroke="#475569" stroke-width="2.5" />
+              <line x1="230" y1="218" x2="235" y2="242" stroke="#475569" stroke-width="2.5" />
+              <line x1="320" y1="212" x2="295" y2="242" stroke="#475569" stroke-width="2.5" />
+              <line x1="280" y1="218" x2="270" y2="242" stroke="#475569" stroke-width="2.5" />
+
+              <!-- 8. Góndola: Caja de Madera clásica de Bad Piggies -->
+              <g id="gondolaBox">
+                <!-- Cuerpo principal de madera -->
+                <rect x="195" y="238" width="125" height="54" rx="7" fill="url(#crateWoodGrad)" stroke="#451a03" stroke-width="2.5" />
+
+                <!-- Tablones horizontales -->
+                <rect x="198" y="242" width="119" height="14" fill="url(#plankLight)" opacity="0.4" />
+                <rect x="198" y="259" width="119" height="14" fill="url(#plankLight)" opacity="0.3" />
+                <rect x="198" y="275" width="119" height="13" fill="url(#plankLight)" opacity="0.4" />
+
+                <!-- Refuerzos de esquinas metálicas con remaches de tuerca -->
+                <circle cx="201" cy="244" r="2.5" fill="#94a3b8" stroke="#334155" stroke-width="0.8" />
+                <circle cx="314" cy="244" r="2.5" fill="#94a3b8" stroke="#334155" stroke-width="0.8" />
+                <circle cx="201" cy="286" r="2.5" fill="#94a3b8" stroke="#334155" stroke-width="0.8" />
+                <circle cx="314" cy="286" r="2.5" fill="#94a3b8" stroke="#334155" stroke-width="0.8" />
+
+                <!-- Resorte inferior de aterrizaje (Bad Piggies Spring) -->
+                <path d="M250 292 Q255 296 250 300 Q245 304 250 308 Q255 312 250 316" 
+                      fill="none" stroke="#64748b" stroke-width="3" stroke-linecap="round" />
+
+                <!-- Ventana de la cabina -->
+                <rect x="238" y="244" width="56" height="32" rx="6" fill="#0f172a" stroke="#451a03" stroke-width="2" />
+
+                <!-- 9. ¡ROSS EL CERDO adentro de la cabina! (Piloto Bad Piggies) -->
+                <g id="rossPilot">
+                  <!-- Cabeza de Ross -->
+                  <circle cx="265" cy="265" r="14" fill="#6DE249" />
+                  <!-- Orejitas de Ross -->
+                  <circle cx="254" cy="254" r="4.5" fill="#51BC30" />
+                  <circle cx="276" cy="254" r="4.5" fill="#51BC30" />
+
+                  <!-- Ojos de Ross -->
+                  <circle cx="260" cy="262" r="4" fill="#ffffff" />
+                  <circle cx="261" cy="262" r="2" fill="#0f172a" />
+                  <circle cx="270" cy="262" r="4" fill="#ffffff" />
+                  <circle cx="271" cy="262" r="2" fill="#0f172a" />
+
+                  <!-- Hocico de Ross -->
+                  <ellipse cx="265" cy="269" rx="6.5" ry="4.5" fill="#51BC30" />
+                  <circle cx="263" cy="269" r="1.2" fill="#144408" />
+                  <circle cx="267" cy="269" r="1.2" fill="#144408" />
+
+                  <!-- Pecas de Ross -->
+                  <circle cx="256" cy="268" r="1" fill="#78350f" />
+                  <circle cx="274" cy="268" r="1" fill="#78350f" />
+
+                  <!-- Gafas de aviador sobre la frente de Ross -->
+                  <path d="M254 256 Q265 253 276 256" stroke="#78350f" stroke-width="3" fill="none" />
+                  <circle cx="259" cy="256" r="4.5" fill="#38bdf8" stroke="#d97706" stroke-width="1.2" opacity="0.9" />
+                  <circle cx="271" cy="256" r="4.5" fill="#38bdf8" stroke="#d97706" stroke-width="1.2" opacity="0.9" />
+
+                  <!-- Manita de Ross saludando -->
+                  <circle cx="282" cy="272" r="4" fill="#6DE249" stroke="#3da81e" stroke-width="1" />
+                </g>
+
+                <!-- Lente de Cámara FPV frontal (con led parpadeante) -->
+                <circle cx="316" cy="265" r="6" fill="#0f172a" stroke="#6DE249" stroke-width="1.8" />
+                <circle cx="316" cy="265" r="2.5" fill="#22c55e" class="beacon-blink" />
+
+                <!-- Soporte y Hélice lateral de madera girando -->
+                <rect x="175" y="258" width="20" height="6" rx="2" fill="#78350f" />
+                <g class="propeller-spin" style="transform-origin: 175px 261px;">
+                  <ellipse cx="175" cy="261" rx="4" ry="20" fill="#d97706" stroke="#78350f" stroke-width="1.5" opacity="0.9" />
+                </g>
+              </g>
+            </svg>
+
+            <!-- Etiquetas flotantes estilo Bad Piggies -->
+            <div class="tech-tag tag-cam">
+              <span>📷</span>
+              <span>Cámara FPV Activa</span>
+            </div>
+            <div class="tech-tag tag-esp">
+              <span>🐷</span>
+              <span>Piloto: Ross en Cabina</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         BARRA DE ESPECIFICACIONES TÉCNICAS (SPECS BAR)
+         ========================================================================== -->
+    <section class="specs-bar-section" aria-label="Especificaciones Rápidas">
+      <div class="specs-grid">
+        <div class="spec-item">
+          <div class="spec-header">
+            <span>🧠 Procesador</span>
+          </div>
+          <div class="spec-value">ESP32</div>
+          <div class="spec-desc">Dual-Core 240MHz con Wi-Fi & Bluetooth</div>
+        </div>
+
+        <div class="spec-item">
+          <div class="spec-header">
+            <span>⏱️ Autonomía</span>
+          </div>
+          <div class="spec-value">15-20 min</div>
+          <div class="spec-desc">Vuelo prolongado gracias a la sustentación pasiva</div>
+        </div>
+
+        <div class="spec-item">
+          <div class="spec-header">
+            <span>📡 Cobertura</span>
+          </div>
+          <div class="spec-value">120+ m</div>
+          <div class="spec-desc">Streaming de video y control remoto directo</div>
+        </div>
+
+        <div class="spec-item">
+          <div class="spec-header">
+            <span>⚖️ Peso Total</span>
+          </div>
+          <div class="spec-value">~165 g</div>
+          <div class="spec-desc">Chasis ultraligero y seguro en caídas</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         SECCIÓN: DESCRIPCIÓN DEL PROYECTO
+         ========================================================================== */ -->
+    <section class="description-section" id="descripcion">
+      <div class="description-container">
+        <span class="section-badge">Sobre el proyecto</span>
+        <h2 class="section-title">Descripción del proyecto</h2>
+
+        <p class="description-text">
+          Zeppelin es un dron escolar diseñado para volar largas distancias con la capacidad de grabar videos increíbles desde las alturas. Fue construido con mucho entusiasmo por nuestro equipo de 9° grado, utilizando materiales sencillos, una estructura ligera y sensores básicos. Queremos demostrar que cualquier estudiante puede crear tecnología real y divertida en el aula, sin complicaciones ni tecnicismos difíciles.
+        </p>
+
+        <!-- Ventajas claves del diseño Zeppelin vs Dron tradicional -->
+        <div class="features-row">
+          <div class="feature-box">
+            <div class="feature-icon">🎈</div>
+            <h3 class="feature-title">Sustentación Pasiva</h3>
+            <p class="feature-desc">A diferencia de los drones que gastan 100% de su energía en mantenerse en el aire, el Zeppelin flota con facilidad, ahorrando batería para transmitir video continuo.</p>
+          </div>
+
+          <div class="feature-box">
+            <div class="feature-icon">🛡️</div>
+            <h3 class="feature-title">Vuelo Seguro en Interiores</h3>
+            <p class="feature-desc">Su masa ligera y velocidades controladas lo hacen completamente seguro para operar cerca de personas, techos o pasillos estrechos en misiones de búsqueda.</p>
+          </div>
+        </div>
+
+        <!-- Tarjeta explicativa original -->
+        <article class="info-card">
+          <h3 class="card-subtitle">¿Qué es un dron?</h3>
+          <p class="card-text">
+            Un dron es un vehículo aéreo pequeño que vuela a control remoto sin necesidad de un piloto a bordo. Gracias a sus motores, hélices y sensores, puede elevarse suavemente, mantenerse quieto en el aire y explorar zonas abiertas mientras transmite imágenes en video.
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         SECCIÓN: EL PROBLEMA A RESOLVER
+         ========================================================================== -->
+    <section class="problem-section" id="problema">
+      <div class="problem-container">
+        <span class="problem-badge">El reto escolar</span>
+        <h2 class="section-title">Problema a resolver</h2>
+
+        <article class="problem-card">
+          <h3 class="problem-card-title">Situaciones Críticas de Acceso</h3>
+
+          <ul class="problem-list">
+            <li class="problem-item">
+              <span class="problem-bullet">1</span>
+              <div>
+                <strong>Zonas de alto peligro:</strong> En situaciones de emergencia o riesgo extremo, las personas no pueden entrar ni moverse de forma segura.
+              </div>
+            </li>
+            <li class="problem-item">
+              <span class="problem-bullet">2</span>
+              <div>
+                <strong>Acceso bloqueado para humanos:</strong> Hay áreas derrumbadas, estrechas o peligrosas donde nosotros físicamente no podemos ingresar.
+              </div>
+            </li>
+            <li class="problem-item">
+              <span class="problem-bullet">3</span>
+              <div>
+                <strong>Exploración visual segura:</strong> Nuestro dron Zeppelin entra a estas zonas y graba en video lo que ocurre dentro, permitiendo ver todo sin arriesgar vidas humanas.
+              </div>
+            </li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         SECCIÓN INTERACTIVA: SIMULADOR FPV Y TELEMETRÍA EN DIRECTO
+         ========================================================================== -->
+    <section class="simulator-section" id="simulador">
+      <div class="simulator-container">
+        <div class="sim-header">
+          <span class="section-badge">Demostración en Vivo</span>
+          <h2 class="section-title">Consola de Mando y Telemetría FPV</h2>
+          <p>Experimenta cómo el piloto ve el vuelo del Piggy Zeppelin desde el centro de control en tierra en tiempo real.</p>
+        </div>
+
+        <div class="fpv-console">
+          <!-- Flash de cámara -->
+          <div class="camera-flash" id="cameraFlash"></div>
+
+          <!-- Barra superior de estado -->
+          <div class="fpv-topbar">
+            <div class="fpv-status-live">
+              <span class="rec-dot"></span>
+              <span>LIVE FEED // REC <span id="recTimer">00:03:42</span></span>
+            </div>
+            <div>RESOLUCIÓN: <strong>720p @ 30FPS</strong></div>
+            <div>LINK: <strong style="color: var(--palette-lime);">ESP32-CAM (OK)</strong></div>
+          </div>
+
+          <!-- Pantalla con simulación visual -->
+          <div class="fpv-screen" id="fpvScreen">
+            <div class="sky-horizon" id="horizonLine"></div>
+            <div class="grid-terrain"></div>
+            <div class="scanlines-overlay"></div>
+
+            <!-- Interfaz HUD sobre la cámara -->
+            <div class="hud-overlay">
+              <div class="hud-row">
+                <div class="telemetry-card">
+                  <span>ALTITUD (ALT)</span>
+                  <span class="telemetry-val" id="altVal">14.8 m</span>
+                </div>
+                <div class="telemetry-card" style="text-align: center;">
+                  <span>PILOTO A BORDO</span>
+                  <span class="telemetry-val" id="pilotStatusVal" style="color: var(--palette-lime); font-size: 0.95rem;">🐷 Ross (Activo)</span>
+                </div>
+                <div class="telemetry-card" style="text-align: right;">
+                  <span>SEÑAL WI-FI</span>
+                  <span class="telemetry-val" id="wifiVal">-52 dBm (96%)</span>
+                </div>
+              </div>
+
+              <!-- Retícula central -->
+              <div class="hud-center">
+                <div class="crosshair"></div>
+                <div class="target-box" id="targetBox">
+                  [ZONA SEGURA LOCALIZADA]
+                </div>
+              </div>
+
+              <div class="hud-row">
+                <div class="telemetry-card">
+                  <span>BATERÍA LIPO</span>
+                  <span class="telemetry-val" id="batVal">88% (4.02V)</span>
+                </div>
+                <div class="telemetry-card" style="text-align: right;">
+                  <span>RUMBO (HEADING)</span>
+                  <span class="telemetry-val" id="headingVal">NNO 342°</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Barra de controles interactivos -->
+          <div class="sim-controls-bar">
+            <div class="control-group">
+              <span style="font-size: 0.8rem; color: #94a3b8; font-weight: 600;">ELEVACIÓN:</span>
+              <button class="sim-btn" id="btnAscend">▲ Elevar (+1.5m)</button>
+              <button class="sim-btn" id="btnDescend">▼ Bajar (-1.5m)</button>
+            </div>
+
+            <div class="control-group">
+              <span style="font-size: 0.8rem; color: #94a3b8; font-weight: 600;">VISIÓN:</span>
+              <button class="sim-btn btn-active" id="btnModeNormal">👁️ Normal</button>
+              <button class="sim-btn" id="btnModeNight">🟢 Nocturna</button>
+              <button class="sim-btn" id="btnModeThermal">🔥 Térmica</button>
+            </div>
+
+            <div class="control-group">
+              <button class="sim-btn" id="btnOink" style="border-color: var(--palette-lime); color: var(--palette-lime);" title="Hacer sonido de cerdito">
+                🐷 ¡Oink!
+              </button>
+              <button class="sim-btn" id="btnSnapshot" style="border-color: var(--palette-orange); color: var(--palette-orange);">
+                📸 Captura de Foto
+              </button>
+              <button class="sim-btn" id="btnAudioToggle" title="Activar/Silenciar efecto sonoro">
+                🔊 Sonido
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         SECCIÓN: MATERIALES
+         ========================================================================== -->
+    <section class="materials-section" id="materiales">
+      <div class="materials-container">
+        <div class="materials-title-wrap">
+          <span class="section-badge">Componentes del proyecto</span>
+          <h2 class="section-title">Materiales y Herramientas</h2>
+          <p style="color: var(--text-muted); font-size: 1.05rem;">Cada pieza fue seleccionada para mantener una relación óptima entre costo accesible, peso pluma y resistencia.</p>
+        </div>
+
+        <div class="materials-grid">
+          <!-- Item 1 -->
+          <article class="material-card">
+            <div class="material-header">
+              <span class="material-number">1</span>
+              <span class="material-badge-tag">Estructura</span>
+            </div>
+            <h3 class="material-name">Chasis o base</h3>
+            <p class="material-desc">Estructura ligera de cartón o plástico reforzado para sostener los componentes sin sumar peso innecesario.</p>
+          </article>
+
+          <!-- Item 2 -->
+          <article class="material-card">
+            <div class="material-header">
+              <span class="material-number">2</span>
+              <span class="material-badge-tag">Propulsión</span>
+            </div>
+            <h3 class="material-name">Hélices y motores</h3>
+            <p class="material-desc">Micromotores con reductora y hélices de alto paso para otorgar impulsos precisos de avance y giro direccional.</p>
+          </article>
+
+          <!-- Item 3 -->
+          <article class="material-card">
+            <div class="material-header">
+              <span class="material-number">3</span>
+              <span class="material-badge-tag">Cerebro</span>
+            </div>
+            <h3 class="material-name">Microcontrolador (ESP32)</h3>
+            <p class="material-desc">El cerebro programable del dron que procesa órdenes, coordina los sensores y transmite la red Wi-Fi.</p>
+          </article>
+
+          <!-- Item 4 -->
+          <article class="material-card">
+            <div class="material-header">
+              <span class="material-number">4</span>
+              <span class="material-badge-tag">Visión y Sensores</span>
+            </div>
+            <h3 class="material-name">Minicámara y giroscopio</h3>
+            <p class="material-desc">La cámara transmite video en directo y el giroscopio MPU6050 mantiene el equilibrio y la orientación angular en el aire.</p>
+          </article>
+
+          <!-- Item 5 -->
+          <article class="material-card">
+            <div class="material-header">
+              <span class="material-number">5</span>
+              <span class="material-badge-tag">Memoria</span>
+            </div>
+            <h3 class="material-name">Almacenamiento de datos</h3>
+            <p class="material-desc">Ranura para memoria MicroSD para guardar las grabaciones de video continuo e informes de cada prueba de vuelo.</p>
+          </article>
+
+          <!-- Item 6 -->
+          <article class="material-card">
+            <div class="material-header">
+              <span class="material-number">6</span>
+              <span class="material-badge-tag">Potencia</span>
+            </div>
+            <h3 class="material-name">Cables, batería y cinta</h3>
+            <p class="material-desc">Batería LiPo recargable, reguladores de 3.3V, cables Dupont y cinta de alta resistencia para un montaje seguro y firme.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         SECCIÓN: DIAGRAMA INTERACTIVO DE HARDWARE (ARQUITECTURA)
+         ========================================================================== -->
+    <section class="circuit-section" id="circuito">
+      <div class="circuit-container">
+        <span class="section-badge">Diagrama de Conexiones</span>
+        <h2 class="section-title">Arquitectura Electrónica</h2>
+        <p style="color: var(--text-muted); font-size: 1.05rem; margin-bottom: 1.5rem;">Toca cualquier bloque para comprender cómo el microcontrolador gestiona cada parte del dirigible.</p>
+
+        <div class="circuit-board">
+          <div class="circuit-diagram">
+            <!-- Columna Izquierda: Entradas / Sensores -->
+            <div class="circuit-col">
+              <div class="circuit-node" data-info="El giroscopio MPU6050 se conecta mediante el protocolo I2C (Pines SDA / SCL) para medir inclinación y estabilizar el vuelo automáticamente.">
+                <div class="node-title">🧭 Giroscopio MPU6050</div>
+                <div class="node-desc">Bus I2C &bull; Estabilidad de 6 ejes</div>
+              </div>
+
+              <div class="circuit-node" data-info="La batería LiPo de 3.7V alimenta un circuito elevador/regulador de voltaje a 3.3V y 5V que suministra energía estable al ESP32 sin reinicios.">
+                <div class="node-title">🔋 Batería LiPo + Regulador</div>
+                <div class="node-desc">Alimentación de energía continua</div>
+              </div>
+            </div>
+
+            <!-- Centro: Microcontrolador ESP32 -->
+            <div class="node-center">
+              <div class="esp-chip-icon">⚡</div>
+              <h3 style="font-family: 'Space Grotesk', sans-serif; font-size: 1.35rem; color: var(--text-main);">ESP32 Microcontroller</h3>
+              <p style="font-size: 0.88rem; color: var(--text-muted);">Unidad Central de Procesamiento con antena Wi-Fi integrada</p>
+              <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; background: var(--bg-alt); padding: 0.3rem 0.6rem; border-radius: 6px; color: var(--palette-green);">
+                FIRMWARE: C++ / Arduino Framework
+              </div>
+            </div>
+
+            <!-- Columna Derecha: Salidas / Actuadores -->
+            <div class="circuit-col">
+              <div class="circuit-node" data-info="El módulo OV2640 de la ESP32-CAM captura video en streaming y lo envía mediante protocolo WebSockets o HTTP a la pantalla del piloto.">
+                <div class="node-title">📷 Módulo Cámara FPV</div>
+                <div class="node-desc">Streaming inalámbrico en vivo</div>
+              </div>
+
+              <div class="circuit-node" data-info="El ESP32 envía señales PWM (Modulación por Ancho de Pulsos) a los transistores/driver para variar la velocidad de los motores con suavidad.">
+                <div class="node-title">⚙️ Controlador de Motores</div>
+                <div class="node-desc">Señales PWM &bull; Control direccional</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mensaje explicativo interactivo -->
+          <div class="circuit-info-box" id="circuitInfoText">
+            <span>💡 <strong>Consejo del equipo:</strong> Haz clic sobre cualquier componente para ver su función técnica detallada y cómo se comunica con el ESP32.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         SECCIÓN: FASES DEL PROYECTO (TIMELINE)
+         ========================================================================== -->
+    <section class="timeline-section" id="fases">
+      <div class="timeline-container">
+        <span class="section-badge">Bitácora de Trabajo</span>
+        <h2 class="section-title">Fases del Desarrollo Escolar</h2>
+
+        <div class="timeline-list">
+          <!-- Fase 1 -->
+          <div class="timeline-item completed">
+            <div class="timeline-marker">✓</div>
+            <div class="timeline-content">
+              <div class="timeline-title-row">
+                <h3 class="timeline-title">Fase 1: Investigación y Cálculos de Flotabilidad</h3>
+                <span class="timeline-tag tag-done">Completada</span>
+              </div>
+              <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.6;">
+                Estudio del principio de Arquímedes, cálculo del peso máximo de los componentes (menos de 200g) y selección de materiales reciclables y ligeros para la envoltura aerostática.
+              </p>
+            </div>
+          </div>
+
+          <!-- Fase 2 -->
+          <div class="timeline-item completed">
+            <div class="timeline-marker">✓</div>
+            <div class="timeline-content">
+              <div class="timeline-title-row">
+                <h3 class="timeline-title">Fase 2: Programación del ESP32 y Banco de Pruebas</h3>
+                <span class="timeline-tag tag-done">Completada</span>
+              </div>
+              <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.6;">
+                Programación del código en C++ para encendido de motores por PWM, configuración del servidor web local y calibración de las lecturas del giroscopio MPU6050.
+              </p>
+            </div>
+          </div>
+
+          <!-- Fase 3 -->
+          <div class="timeline-item in-progress">
+            <div class="timeline-marker">3</div>
+            <div class="timeline-content">
+              <div class="timeline-title-row">
+                <h3 class="timeline-title">Fase 3: Integración de Cámara y Ensamble Estructural</h3>
+                <span class="timeline-tag tag-active">En Progreso</span>
+              </div>
+              <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.6;">
+                Montaje de la minicámara en la góndola inferior, ajuste de la transmisión de video por red Wi-Fi y balanceo del centro de gravedad con la batería.
+              </p>
+            </div>
+          </div>
+
+          <!-- Fase 4 -->
+          <div class="timeline-item">
+            <div class="timeline-marker">4</div>
+            <div class="timeline-content">
+              <div class="timeline-title-row">
+                <h3 class="timeline-title">Fase 4: Vuelos de Demostración y Presentación</h3>
+                <span class="timeline-tag tag-next">Próximamente</span>
+              </div>
+              <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.6;">
+                Pruebas finales de recorrido en el gimnasio del colegio, simulación de rescate visual y presentación ante los jueces y profesores del Instituto Emiliani.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         SECCIÓN: INTEGRANTES Y ROLES
+         ========================================================================== -->
+    <section class="team-section" id="equipo">
+      <div class="team-container">
+        <span class="section-badge">Equipo escolar</span>
+        <h2 class="section-title">Integrantes y Roles</h2>
+        <p style="color: var(--text-muted); font-size: 1.05rem;">Cada integrante asumió una responsabilidad especializada para hacer realidad el prototipo:</p>
+
+        <div class="team-grid">
+          <!-- Integrante 1 -->
+          <article class="team-card">
+            <div class="team-card-header">
+              <div class="team-avatar" title="Professor Pig">👓</div>
+              <div class="team-info">
+                <h3 class="team-name">Alfonso Márquez</h3>
+                <span class="team-role">Programación (Código del Dron)</span>
+                <span class="alter-ego-badge">🧠 Alter Ego: Professor Pig</span>
+              </div>
+            </div>
+            <p class="team-phrase">Escribe y ajusta el código en C++ para el microcontrolador ESP32, calibra los motores mediante señales PWM y mantiene la telemetría estable.</p>
+            <div class="team-skills">
+              <span class="skill-pill">C++</span>
+              <span class="skill-pill">ESP32</span>
+              <span class="skill-pill">WebSockets</span>
+              <span class="skill-pill">PWM</span>
+              <span class="skill-pill">Algoritmos</span>
+            </div>
+          </article>
+
+          <!-- Integrante 2 -->
+          <article class="team-card">
+            <div class="team-card-header">
+              <div class="team-avatar" title="Ross el Diseñador">✏️</div>
+              <div class="team-info">
+                <h3 class="team-name">Gerardo Lazo</h3>
+                <span class="team-role">Diseño y Documentación</span>
+                <span class="alter-ego-badge">🎨 Alter Ego: Ross Diseñador</span>
+              </div>
+            </div>
+            <p class="team-phrase">Diseña la interfaz visual del proyecto, elabora los planos técnicos (Blueprints) y organiza las fotos y bitácora del armado del dirigible.</p>
+            <div class="team-skills">
+              <span class="skill-pill">Diseño Web</span>
+              <span class="skill-pill">UX/UI</span>
+              <span class="skill-pill">Bitácora</span>
+              <span class="skill-pill">Fotografía</span>
+              <span class="skill-pill">Planos</span>
+            </div>
+          </article>
+
+          <!-- Integrante 3 -->
+          <article class="team-card">
+            <div class="team-card-header">
+              <div class="team-avatar" title="Corporal Pig">🪖</div>
+              <div class="team-info">
+                <h3 class="team-name">David Flores</h3>
+                <span class="team-role">Líder de Proyecto (Misión)</span>
+                <span class="alter-ego-badge">🎖️ Alter Ego: Corporal Pig</span>
+              </div>
+            </div>
+            <p class="team-phrase">Coordina las metas del equipo, organiza las pruebas de despegue y prepara la presentación escolar para impresionar a los evaluadores.</p>
+            <div class="team-skills">
+              <span class="skill-pill">Liderazgo</span>
+              <span class="skill-pill">Oratoria</span>
+              <span class="skill-pill">Logística</span>
+              <span class="skill-pill">Pruebas</span>
+              <span class="skill-pill">Estrategia</span>
+            </div>
+          </article>
+
+          <!-- Integrante 4 -->
+          <article class="team-card">
+            <div class="team-card-header">
+              <div class="team-avatar" title="Mechanic Pig">🔧</div>
+              <div class="team-info">
+                <h3 class="team-name">Carlos Molina</h3>
+                <span class="team-role">Hardware (Ensamblaje y Motores)</span>
+                <span class="alter-ego-badge">🛠️ Alter Ego: Mechanic Pig</span>
+              </div>
+            </div>
+            <p class="team-phrase">Ensambla el chasis, monta los micromotores y hélices, conecta la batería LiPo y asegura todos los sensores en su lugar con precisión.</p>
+            <div class="team-skills">
+              <span class="skill-pill">Soldadura</span>
+              <span class="skill-pill">Chasis</span>
+              <span class="skill-pill">Electrónica</span>
+              <span class="skill-pill">Sensores</span>
+              <span class="skill-pill">Mecánica</span>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Botón flotante para volver arriba -->
+  <button id="backToTopBtn" class="back-to-top" title="Volver arriba" aria-label="Volver arriba">
+    ↑
+  </button>
+
+  <!-- Modal con la Ficha Técnica Escolar -->
+  <div class="modal-overlay" id="techModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-content">
+      <button class="modal-close" id="closeModalBtn" aria-label="Cerrar ventana">&times;</button>
+      <span class="section-badge">Memoria de Proyecto</span>
+      <h3 id="modalTitle" style="font-family: 'Space Grotesk', sans-serif; font-size: 1.6rem; color: var(--text-main); margin-top: 0.5rem;">
+        Ficha Técnica: Piggy Zeppelin
+      </h3>
+
+      <div class="modal-body">
+        <div>
+          <h4>1. Justificación del Proyecto</h4>
+          <p>En catástrofes naturales y colapsos estructurales, el despliegue de rescatistas humanos pone vidas en peligro antes de saber si el terreno es seguro. Piggy Zeppelin propone una alternativa de bajo costo construida con materiales accesibles que cualquier escuela técnica puede replicar.</p>
+        </div>
+
+        <div>
+          <h4>2. Principio de Operación Aerostática</h4>
+          <p>A diferencia de los cuadricópteros cuyos motores operan al 100% para mantenerse en el aire, el Zeppelin utiliza el empuje hidrostático del aire, reduciendo el consumo eléctrico hasta un 70%, permitiendo mayor tiempo de vuelo con una batería estándar de 500mAh.</p>
+        </div>
+
+        <div>
+          <h4>3. Especificaciones Electrónicas</h4>
+          <p>
+            &bull; <strong>Microcontrolador:</strong> ESP32-WROOM-32 / ESP32-CAM (240 MHz)<br>
+            &bull; <strong>Alimentación:</strong> Batería LiPo 3.7V con regulador Boost a 5V<br>
+            &bull; <strong>Sensores:</strong> Acelerómetro y Giroscopio MPU-6050 (I2C)<br>
+            &bull; <strong>Transmisión de Video:</strong> Servidor HTTP embebido en tiempo real
+          </p>
+        </div>
+
+        <div>
+          <h4>4. Institución y Grado</h4>
+          <p>Proyecto desarrollado para la materia de Tecnología y Ciencias en <strong>9° Grado</strong>, Instituto Emiliani &bull; Future Minds.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="footer-content">
+      <p class="footer-text">
+        <span>🎈 Piggy Zeppelin</span> &bull; 
+        <span>Future Minds</span> &bull; 
+        <span>9° Grado</span> &bull; 
+        <span>Instituto Emiliani</span>
+      </p>
+
+      <div class="footer-actions">
+        <button class="btn-footer" id="footerModalTrigger">📄 Ver Memoria Técnica</button>
+        <a href="#simulador" class="btn-footer">🕹️ Ir al Simulador</a>
+        <a href="#equipo" class="btn-footer">👥 Integrantes</a>
+      </div>
+
+      <p style="font-size: 0.8rem; color: var(--text-muted); opacity: 0.8;">
+        Desarrollado con orgullo escolar por Alfonso Márquez, Gerardo Lazo, David Flores y Carlos Molina.
+      </p>
+    </div>
+  </footer>
+
+  <!-- ==========================================================================
+       JAVASCRIPT: MODO OSCURO, SIMULADOR FPV Y DINAMISMO
+       ========================================================================== -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // 1. Alternador de Tema (Modo Claro / Modo Centro de Mando Oscuro)
+      const themeToggleBtn = document.getElementById('themeToggleBtn');
+      const themeIcon = document.getElementById('themeIcon');
+      const htmlEl = document.documentElement;
+
+      const savedTheme = localStorage.getItem('piggy_zeppelin_theme') || 'light';
+      setTheme(savedTheme);
+
+      themeToggleBtn.addEventListener('click', () => {
+        const currentTheme = htmlEl.getAttribute('data-theme');
+        const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        setTheme(nextTheme);
+      });
+
+      function setTheme(theme) {
+        htmlEl.setAttribute('data-theme', theme);
+        localStorage.setItem('piggy_zeppelin_theme', theme);
+        if (theme === 'dark') {
+          themeIcon.textContent = '☀️';
+          themeToggleBtn.title = 'Cambiar a Modo Claro';
+        } else {
+          themeIcon.textContent = '🛰️';
+          themeToggleBtn.title = 'Cambiar a Modo Centro de Mando (Oscuro)';
+        }
+      }
+
+      // 2. Menú Hamburguesa para Móviles
+      const menuToggleBtn = document.getElementById('menuToggleBtn');
+      const navLinks = document.getElementById('navLinks');
+
+      menuToggleBtn.addEventListener('click', () => {
+        navLinks.classList.toggle('mobile-open');
+      });
+
+      navLinks.querySelectorAll('a').forEach(link => {
+        link.addEventListener('click', () => {
+          navLinks.classList.remove('mobile-open');
+        });
+      });
+
+      // 3. Botón "Volver Arriba" (Back to Top)
+      const backToTopBtn = document.getElementById('backToTopBtn');
+      window.addEventListener('scroll', () => {
+        if (window.scrollY > 400) {
+          backToTopBtn.classList.add('visible');
+        } else {
+          backToTopBtn.classList.remove('visible');
+        }
+      });
+
+      backToTopBtn.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+
+      // 4. Parallax suave en el Zeppelin SVG con el mouse
+      const zeppelinVisual = document.getElementById('zeppelinVisual');
+      const heroSection = document.getElementById('inicio');
+
+      if (zeppelinVisual && heroSection) {
+        heroSection.addEventListener('mousemove', (e) => {
+          const rect = heroSection.getBoundingClientRect();
+          const x = (e.clientX - rect.left) / rect.width - 0.5;
+          const y = (e.clientY - rect.top) / rect.height - 0.5;
+          zeppelinVisual.style.transform = `translate(${x * 16}px, ${y * 12}px) rotate(${x * 4}deg)`;
+        });
+
+        heroSection.addEventListener('mouseleave', () => {
+          zeppelinVisual.style.transform = 'translate(0, 0) rotate(0deg)';
+        });
+      }
+
+      // 5. Lógica Interactiva del Simulador de Vuelo FPV
+      let altitude = 14.8;
+      const altValEl = document.getElementById('altVal');
+      const horizonLine = document.getElementById('horizonLine');
+      const fpvScreen = document.getElementById('fpvScreen');
+      const cameraFlash = document.getElementById('cameraFlash');
+      const recTimerEl = document.getElementById('recTimer');
+      const targetBox = document.getElementById('targetBox');
+
+      // Botones de elevación
+      const btnAscend = document.getElementById('btnAscend');
+      const btnDescend = document.getElementById('btnDescend');
+
+      btnAscend.addEventListener('click', () => {
+        altitude = Math.min(45.0, altitude + 1.5);
+        updateAltitude();
+        playBeep(640, 0.08);
+      });
+
+      btnDescend.addEventListener('click', () => {
+        altitude = Math.max(1.0, altitude - 1.5);
+        updateAltitude();
+        playBeep(480, 0.08);
+      });
+
+      const pilotStatusVal = document.getElementById('pilotStatusVal');
+
+      function updateAltitude() {
+        altValEl.textContent = `${altitude.toFixed(1)} m`;
+        // Mueve ligeramente la línea del horizonte
+        const horizonShift = 55 + (15 - altitude) * 0.8;
+        horizonLine.style.top = `${Math.max(20, Math.min(80, horizonShift))}%`;
+        if (pilotStatusVal) {
+          if (altitude >= 30) {
+            pilotStatusVal.textContent = '🐷 Ross (¡Vuelo Alto!)';
+          } else if (altitude <= 3) {
+            pilotStatusVal.textContent = '🐷 Ross (Aterrizando)';
+          } else {
+            pilotStatusVal.textContent = '🐷 Ross (Activo)';
+          }
+        }
+      }
+
+      // Modos de Visión (Normal, Nocturna, Térmica)
+      const btnModeNormal = document.getElementById('btnModeNormal');
+      const btnModeNight = document.getElementById('btnModeNight');
+      const btnModeThermal = document.getElementById('btnModeThermal');
+      const visionButtons = [btnModeNormal, btnModeNight, btnModeThermal];
+
+      btnModeNormal.addEventListener('click', () => {
+        setVisionMode('normal', btnModeNormal);
+      });
+      btnModeNight.addEventListener('click', () => {
+        setVisionMode('night', btnModeNight);
+      });
+      btnModeThermal.addEventListener('click', () => {
+        setVisionMode('thermal', btnModeThermal);
+      });
+
+      function setVisionMode(mode, activeBtn) {
+        visionButtons.forEach(btn => btn.classList.remove('btn-active'));
+        activeBtn.classList.add('btn-active');
+        fpvScreen.classList.remove('mode-night', 'mode-thermal');
+
+        if (mode === 'night') {
+          fpvScreen.classList.add('mode-night');
+          targetBox.textContent = '[MODO NOCTURNO: INFRARROJO ON]';
+          playBeep(880, 0.07);
+        } else if (mode === 'thermal') {
+          fpvScreen.classList.add('mode-thermal');
+          targetBox.textContent = '[TERMOGRAFÍA: FIRMAS DE CALOR]';
+          playBeep(720, 0.07);
+        } else {
+          targetBox.textContent = '[ZONA SEGURA LOCALIZADA]';
+          playBeep(580, 0.07);
+        }
+      }
+
+      // Captura de Foto con Flash
+      const btnSnapshot = document.getElementById('btnSnapshot');
+      btnSnapshot.addEventListener('click', () => {
+        cameraFlash.classList.add('flash-active');
+        playShutterSound();
+        setTimeout(() => {
+          cameraFlash.classList.remove('flash-active');
+        }, 120);
+
+        const prevText = btnSnapshot.textContent;
+        btnSnapshot.textContent = '✓ ¡Foto Guardada!';
+        setTimeout(() => {
+          btnSnapshot.textContent = prevText;
+        }, 1600);
+      });
+
+      // Contador de grabación dinámico (REC)
+      let seconds = 222;
+      setInterval(() => {
+        seconds++;
+        const mins = String(Math.floor(seconds / 60)).padStart(2, '0');
+        const secs = String(seconds % 60).padStart(2, '0');
+        recTimerEl.textContent = `00:${mins}:${secs}`;
+      }, 1000);
+
+      // Efectos de Sonido con Web Audio API (Totalmente nativo y sin descargas)
+      let soundEnabled = true;
+      const btnAudioToggle = document.getElementById('btnAudioToggle');
+      let audioCtx = null;
+
+      btnAudioToggle.addEventListener('click', () => {
+        soundEnabled = !soundEnabled;
+        btnAudioToggle.textContent = soundEnabled ? '🔊 Sonido' : '🔇 Silencio';
+        btnAudioToggle.classList.toggle('btn-active', soundEnabled);
+        if (soundEnabled) playBeep(800, 0.05);
+      });
+
+      function getAudioContext() {
+        if (!audioCtx) {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (AudioContextClass) audioCtx = new AudioContextClass();
+        }
+        if (audioCtx && audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+        return audioCtx;
+      }
+
+      function playBeep(freq, duration) {
+        if (!soundEnabled) return;
+        try {
+          const ctx = getAudioContext();
+          if (!ctx) return;
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, ctx.currentTime);
+          gain.gain.setValueAtTime(0.04, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + duration);
+        } catch (e) {
+          // Audio no soportado o bloqueado por el navegador
+        }
+      }
+
+      function playShutterSound() {
+        if (!soundEnabled) return;
+        try {
+          const ctx = getAudioContext();
+          if (!ctx) return;
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(1200, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(300, ctx.currentTime + 0.08);
+          gain.gain.setValueAtTime(0.08, ctx.currentTime);
+          gain.gain.linearRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.08);
+        } catch (e) {}
+      }
+
+      // Efecto de sonido Oink y Boing de Bad Piggies (Sintetizador Web Audio)
+      function playOinkSound() {
+        if (!soundEnabled) return;
+        try {
+          const ctx = getAudioContext();
+          if (!ctx) return;
+          const now = ctx.currentTime;
+
+          // 1. Gruñido de cerdito
+          const osc1 = ctx.createOscillator();
+          const gain1 = ctx.createGain();
+          const filter = ctx.createBiquadFilter();
+
+          osc1.type = 'sawtooth';
+          osc1.frequency.setValueAtTime(135, now);
+          osc1.frequency.exponentialRampToValueAtTime(310, now + 0.07);
+          osc1.frequency.exponentialRampToValueAtTime(120, now + 0.22);
+
+          filter.type = 'bandpass';
+          filter.frequency.setValueAtTime(680, now);
+          filter.Q.setValueAtTime(3.2, now);
+
+          gain1.gain.setValueAtTime(0.14, now);
+          gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+
+          osc1.connect(filter);
+          filter.connect(gain1);
+          gain1.connect(ctx.destination);
+
+          osc1.start(now);
+          osc1.stop(now + 0.25);
+
+          // 2. Resorte de Bad Piggies (Boing)
+          const osc2 = ctx.createOscillator();
+          const gain2 = ctx.createGain();
+          osc2.type = 'sine';
+          osc2.frequency.setValueAtTime(420, now + 0.08);
+          osc2.frequency.exponentialRampToValueAtTime(800, now + 0.28);
+
+          gain2.gain.setValueAtTime(0.06, now + 0.08);
+          gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+
+          osc2.connect(gain2);
+          gain2.connect(ctx.destination);
+
+          osc2.start(now + 0.08);
+          osc2.stop(now + 0.32);
+        } catch (e) {}
+      }
+
+      // Frases divertidas de Ross y rebote de resorte
+      const rossSpeechBubble = document.getElementById('rossSpeechBubble');
+      const btnOink = document.getElementById('btnOink');
+      const rossQuotes = [
+        "¡Oink! ¡Ross al mando del ESP32! 🚀",
+        "¡Hélices al 100%! ¡Sin pájaros a la vista! 🐷",
+        "¡Planos aprobados por el Capataz! 📐",
+        "¡Volando sobre el Instituto Emiliani! 🎈",
+        "¡Operación de rescate escolar en marcha! 🛡️",
+        "¡Todo marcha sobre ruedas... o sobre hélices! ⚙️"
+      ];
+      let quoteIndex = 0;
+
+      function triggerRossQuote() {
+        if (!rossSpeechBubble) return;
+        quoteIndex = (quoteIndex + 1) % rossQuotes.length;
+        rossSpeechBubble.textContent = rossQuotes[quoteIndex];
+        rossSpeechBubble.classList.add('active-bubble');
+
+        if (zeppelinVisual) {
+          zeppelinVisual.classList.add('spring-bounce');
+          setTimeout(() => zeppelinVisual.classList.remove('spring-bounce'), 450);
+        }
+
+        playOinkSound();
+
+        setTimeout(() => {
+          rossSpeechBubble.classList.remove('active-bubble');
+        }, 2600);
+      }
+
+      if (zeppelinVisual) {
+        zeppelinVisual.addEventListener('click', triggerRossQuote);
+      }
+
+      if (btnOink) {
+        btnOink.addEventListener('click', () => {
+          playOinkSound();
+          if (pilotStatusVal) {
+            const prevPilot = pilotStatusVal.textContent;
+            pilotStatusVal.textContent = '🐷 Ross: "¡Oink Oink!"';
+            setTimeout(() => { pilotStatusVal.textContent = prevPilot; }, 1800);
+          }
+          triggerRossQuote();
+        });
+      }
+
+      // 6. Interactividad del Diagrama de Hardware / Circuito
+      const circuitNodes = document.querySelectorAll('.circuit-node');
+      const circuitInfoText = document.getElementById('circuitInfoText');
+
+      circuitNodes.forEach(node => {
+        node.addEventListener('click', () => {
+          circuitNodes.forEach(n => n.classList.remove('active-node'));
+          node.classList.add('active-node');
+          const info = node.getAttribute('data-info');
+          circuitInfoText.innerHTML = `⚡ <strong>Detalle:</strong> ${info}`;
+          playBeep(700, 0.05);
+        });
+      });
+
+      // 7. Modal de Ficha Técnica
+      const techModal = document.getElementById('techModal');
+      const openModalBtn = document.getElementById('openModalBtn');
+      const closeModalBtn = document.getElementById('closeModalBtn');
+      const footerModalTrigger = document.getElementById('footerModalTrigger');
+
+      function openModal() {
+        techModal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+      }
+
+      function closeModal() {
+        techModal.classList.remove('active');
+        document.body.style.overflow = '';
+      }
+
+      if (openModalBtn) openModalBtn.addEventListener('click', openModal);
+      if (footerModalTrigger) footerModalTrigger.addEventListener('click', openModal);
+      if (closeModalBtn) closeModalBtn.addEventListener('click', closeModal);
+
+      techModal.addEventListener('click', (e) => {
+        if (e.target === techModal) closeModal();
+      });
+
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && techModal.classList.contains('active')) {
+          closeModal();
+        }
+      });
+    });
+  </script>
+</body>
+
+</html>
